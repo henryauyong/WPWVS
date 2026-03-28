@@ -17,7 +17,7 @@ export default function Home() {
   const { currentSong, isPlaying, playSong } = usePlayer();
 
   useEffect(() => {
-    fetch("http://localhost:8000/songs")
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/songs`)
       .then((res) => res.json())
       .then((data) => {
         setData(data);
@@ -30,7 +30,7 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="max-w-screen-xl mx-auto p-6 md:p-12 pb-32">
+    <main className="max-w-7xl mx-auto p-6 md:p-12 pb-32">
       <header className="mb-12">
         <h1 className="text-4xl font-bold mb-2">My Music Library</h1>
         <p className="text-zinc-500">Root Directory</p>
@@ -47,10 +47,12 @@ export default function Home() {
             <section>
               <h2 className="text-xl font-semibold mb-4 text-zinc-400">Folders</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {data.folders.map((folder) => (
+                {data.folders.map((folder) => {
+                  const encodedPath = btoa(encodeURIComponent(folder));
+                  return (
                   <Link 
                     key={folder}
-                    href={`/${folder}`}
+                    href={`/${encodedPath}`}
                     className="p-4 rounded-xl border bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:border-black dark:hover:border-white transition-all flex items-center gap-3 group"
                   >
                     <div className="w-10 h-10 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 group-hover:bg-black group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-black transition-colors">
@@ -58,7 +60,7 @@ export default function Home() {
                     </div>
                     <span className="font-medium truncate">{folder}</span>
                   </Link>
-                ))}
+                )})}
               </div>
             </section>)}
           
@@ -86,7 +88,7 @@ export default function Home() {
                       }`}
                       onClick={() => playSong(songPath)}
                     >
-                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 ${
                         currentSong === songPath 
                           ? "bg-zinc-800 dark:bg-zinc-200" 
                           : "bg-zinc-100 dark:bg-zinc-800"

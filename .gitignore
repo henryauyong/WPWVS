@@ -3,6 +3,8 @@
 music/
 env/
 PLAN.md
+__pycache__/
+*.sqlite
 
 # dependencies
 node_modules/

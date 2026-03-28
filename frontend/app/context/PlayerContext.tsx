@@ -73,7 +73,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (currentSong) {
       // 獲取字幕
-      fetch(`http://localhost:8000/captions/${encodeURIComponent(currentSong)}`)
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/captions/${encodeURIComponent(currentSong)}`)
         .then(res => {
           if (!res.ok) throw new Error('No subtitle');
           return res.text();
@@ -141,7 +141,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     setCurrentSong(songPath);
     if (audioRef.current) {
       // Backend URL - 使用完整的路徑
-      audioRef.current.src = `http://localhost:8000/stream/${encodeURIComponent(songPath)}`;
+      audioRef.current.src = `${process.env.NEXT_PUBLIC_API_URL}/stream/${encodeURIComponent(songPath)}`;
       audioRef.current.play().catch(console.error);
     }
   };

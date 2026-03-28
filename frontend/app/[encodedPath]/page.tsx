@@ -12,16 +12,26 @@ interface SongData {
   path: string;
 }
 
-export default function FolderPage({ params }: { params: Promise<{ folder: string[] }> }) {
+export default function FolderPage({ params }: { params: Promise<{ encodedPath: string }> }) {
   const resolvedParams = use(params);
-  const folderPath = resolvedParams.folder.join("/");
+  
+  // 解碼路徑
+  let folderPath = "";
+  try {
+    folderPath = decodeURIComponent(atob(resolvedParams.encodedPath));
+  } catch (e) {
+    console.error("Failed to decode path:", e);
+  }
+
   const [data, setData] = useState<SongData>({ files: [], folders: [], path: folderPath });
   const [loading, setLoading] = useState(true);
   const { currentSong, isPlaying, playSong } = usePlayer();
   const router = useRouter();
 
   useEffect(() => {
-    fetch(`http://localhost:8000/songs?path=${encodeURIComponent(folderPath)}`)
+    if (!folderPath) return;
+    
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/songs?path=${encodeURIComponent(folderPath)}`)
       .then((res) => res.json())
       .then((data) => {
         setData(data);
@@ -34,11 +44,13 @@ export default function FolderPage({ params }: { params: Promise<{ folder: strin
   }, [folderPath]);
 
   const goBack = () => {
-    if (resolvedParams.folder.length === 1) {
+    const parts = folderPath.split("/");
+    if (parts.length <= 1) {
       router.push("/");
     } else {
-      const parentPath = resolvedParams.folder.slice(0, -1).join("/");
-      router.push(`/${parentPath}`);
+      const parentPath = parts.slice(0, -1).join("/");
+      const encodedParentPath = btoa(encodeURIComponent(parentPath));
+      router.push(`/${encodedParentPath}`);
     }
   };
 
@@ -67,10 +79,13 @@ export default function FolderPage({ params }: { params: Promise<{ folder: strin
             <section>
               <h2 className="text-xl font-semibold mb-4 text-zinc-400">Folders</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {data.folders.map((folder) => (
+                {data.folders.map((folder) => {
+                  const nextPath = `${folderPath}/${folder}`;
+                  const encodedNextPath = btoa(encodeURIComponent(nextPath));
+                  return (
                   <Link 
                     key={folder}
-                    href={`/${folderPath}/${folder}`}
+                    href={`/${encodedNextPath}`}
                     className="p-4 rounded-xl border bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:border-black dark:hover:border-white transition-all flex items-center gap-3 group"
                   >
                     <div className="w-10 h-10 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 group-hover:bg-black group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-black transition-colors">
@@ -78,7 +93,7 @@ export default function FolderPage({ params }: { params: Promise<{ folder: strin
                     </div>
                     <span className="font-medium truncate">{folder}</span>
                   </Link>
-                ))}
+                )})}
               </div>
             </section>
           )}
