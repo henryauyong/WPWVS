@@ -5,6 +5,9 @@ env/
 PLAN.md
 __pycache__/
 *.sqlite
+.agents/
+_old
+.gemini
 
 # dependencies
 node_modules/

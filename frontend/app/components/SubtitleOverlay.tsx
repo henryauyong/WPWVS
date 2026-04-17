@@ -1,17 +1,19 @@
-"use client";
+import { usePlayer } from "../contexts/PlayerContext";
 
-import React from 'react';
-import { usePlayer } from '../context/PlayerContext';
-
-export default function SubtitleOverlay() {
+export function SubtitleOverlay() {
   const { currentSubtitle } = usePlayer();
 
   if (!currentSubtitle) return null;
 
   return (
-    <div className="fixed bottom-28 left-0 right-0 flex justify-center pointer-events-none z-40 px-4">
-      <div className="bg-black/80 text-white px-6 py-3 rounded-xl text-lg md:text-xl font-medium max-w-3xl text-center shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-4 duration-300 border border-white/10">
-        {currentSubtitle}
+    <div className="fixed bottom-24 left-0 right-0 pointer-events-none z-40 px-4">
+      <div className="max-w-4xl mx-auto text-center">
+        <p 
+          className="inline-block text-xl md:text-2xl font-bold text-white px-4 py-2 rounded-lg bg-black/60 backdrop-blur-md shadow-lg"
+          style={{ textShadow: "1px 1px 2px black" }}
+        >
+          {currentSubtitle}
+        </p>
       </div>
     </div>
   );

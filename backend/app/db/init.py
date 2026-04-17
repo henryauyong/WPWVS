@@ -42,7 +42,7 @@ class File(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     path = Column(String, unique=True, index=True, nullable=False)
-    is_folder = Column(Boolean, default=False)
+    type_id = Column(Integer, nullable=False)
     parent_id = Column(Integer, ForeignKey("files.id", ondelete="CASCADE"), nullable=True)
     last_seen = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -50,6 +50,14 @@ class File(Base):
     children = relationship("File", cascade="all, delete-orphan")
     # 關聯：一個檔案可以被多人收藏
     favorited_by = relationship("Favorite", back_populates="file", cascade="all, delete-orphan")
+    
+    # 關聯：音樂檔案對應的字幕
+    subtitles = relationship(
+        "Subtitle", 
+        back_populates="music_file", 
+        primaryjoin="File.id == Subtitle.music_file_id",
+        cascade="all, delete-orphan"
+    )
 
 
 class Favorite(Base):
@@ -63,6 +71,20 @@ class Favorite(Base):
     # 建立雙向關聯，方便查詢
     user = relationship("User", back_populates="favorites")
     file = relationship("File", back_populates="favorited_by")
+
+
+class Subtitle(Base):
+    __tablename__ = "subtitles"
+
+    # 複合主鍵 (Composite PK)
+    music_file_id = Column(Integer, ForeignKey("files.id", ondelete="CASCADE"), primary_key=True)
+    subtitle_file_id = Column(Integer, ForeignKey("files.id", ondelete="CASCADE"), primary_key=True)
+    extension = Column(String, nullable=False)
+
+    # 建立與音樂檔案的關聯
+    music_file = relationship("File", foreign_keys=[music_file_id], back_populates="subtitles")
+    # 建立與字幕檔案實體的關聯
+    subtitle_file = relationship("File", foreign_keys=[subtitle_file_id])
 
 
 # --- 初始化資料庫的函式 ---

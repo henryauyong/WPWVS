@@ -1,9 +1,9 @@
-from typing import Generator, List
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Query
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError, ExpiredSignatureError
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
+from typing import Generator, List, Optional
 
 from app import models, schemas
 
@@ -12,7 +12,8 @@ from app.core.config import settings
 from app.db.session import SessionLocal
 
 reusable_oauth2 = OAuth2PasswordBearer(
-    tokenUrl="/auth/login"
+    tokenUrl="/auth/login",
+    auto_error=False
 )
 
 def get_db() -> Generator:
@@ -27,18 +28,28 @@ def get_db() -> Generator:
 
 def get_current_user(
     db: Session = Depends(get_db), 
-    token: str = Depends(reusable_oauth2)
+    token: Optional[str] = Depends(reusable_oauth2),
+    query_token: Optional[str] = Query(None, alias="token")
 ) -> models.User:
     """
-    驗證 Token 並回傳當前登入的使用者物件
+    驗證 Token 並回傳當前登入的使用者物件。
+    優先檢查 Authorization Header，若無則檢查 Query Parameter 'token'。
     """
+    final_token = token or query_token
+    
+    if not final_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     try:
         # 1. 解碼 JWT Token
-        # jose 會自動檢查 exp 欄位，如果過期會拋出 ExpiredSignatureError
         payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            final_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
-        # 2. 將內容轉換為 Pydantic 模型驗證格式 (檢查 sub 欄位)
+        # 2. 將內容轉換為 Pydantic 模型驗證格式
         token_data = schemas.TokenPayload(**payload)
     except ExpiredSignatureError:
         raise HTTPException(

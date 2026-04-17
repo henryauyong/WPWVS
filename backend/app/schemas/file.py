@@ -5,13 +5,17 @@ from datetime import date, datetime
 class FileBase(BaseModel):
     name: str
     path: str
-    is_folder: bool
-    parent_id: int
+    type_id: int
+    parent_id: Optional[int] = None
 
 class FileCreate(FileBase):
-    last_seen: datetime
+    pass
 
 class File(FileBase):
-    id: str
+    id: int
 
     model_config = ConfigDict(from_attributes=True)
+
+class FolderResponse(BaseModel):
+    folder: File
+    children: List[File]
