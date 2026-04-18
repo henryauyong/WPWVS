@@ -1,8 +1,9 @@
-import { Link } from "react-router";
-import { Folder, Music, Heart, LayoutGrid, List } from "lucide-react";
+import { Link, useParams } from "react-router";
+import { Folder, Music, Heart, LayoutGrid, List, ChevronRight } from "lucide-react";
 import { usePlayer } from "../contexts/PlayerContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useState, useEffect } from "react";
+import { apiClient } from "~/utils/apiClient";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -13,15 +14,25 @@ interface Item {
   parent_id: number;
 }
 
+interface PathItem {
+  id: string;
+  name: string;
+}
+
 interface FolderViewProps {
   folderName: string;
   children: Item[];
 }
 
 export function FolderView({ folderName, children }: FolderViewProps) {
+  const { folderSlug: paramsFolder } = useParams();
+  const folderId = paramsFolder ? parseInt(paramsFolder.split("-")[0]) : 0;
+  
   const { play, currentTrack } = usePlayer();
   const { token } = useAuth();
   const [favorites, setFavorites] = useState<number[]>([]);
+  const [subtitles, setSubtitles] = useState<Record<number, boolean>>({});
+  const [breadcrumbs, setBreadcrumbs] = useState<PathItem[]>([]);
   
   // Default to list view if not set, or whatever is in localStorage
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
@@ -42,9 +53,7 @@ export function FolderView({ folderName, children }: FolderViewProps) {
   useEffect(() => {
     const fetchFavorites = async () => {
       try {
-        const res = await fetch(`${API_URL}/users/me/favorites`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await apiClient(`/users/me/favorites`);
         if (res.ok) {
           const data = await res.json();
           setFavorites(data.map((f: any) => f.file_id));
@@ -53,6 +62,47 @@ export function FolderView({ folderName, children }: FolderViewProps) {
     };
     fetchFavorites();
   }, [token]);
+
+  useEffect(() => {
+    const fetchPath = async () => {
+      try {
+        const res = await apiClient(`/files/folder/${folderId}/path`);
+        if (res.ok) {
+          const data = await res.json();
+          setBreadcrumbs(data);
+        }
+      } catch (e) {}
+    };
+    if (token) {
+      fetchPath();
+    }
+  }, [folderId, token]);
+
+  const folders = children.filter((item) => item.type_id === 1);
+  const files = children.filter((item) => item.type_id === 2);
+  const fileIds = files.map(f => f.id).join(',');
+
+  useEffect(() => {
+    const checkSubtitles = async () => {
+      if (files.length === 0 || !token) return;
+      const subtitleStatus: Record<number, boolean> = {};
+      await Promise.allSettled(
+        files.map(async (file) => {
+          try {
+            const res = await fetch(`${API_URL}/files/subtitle/${file.id}`, {
+              method: 'HEAD',
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            subtitleStatus[file.id] = res.ok;
+          } catch (e) {
+            subtitleStatus[file.id] = false;
+          }
+        })
+      );
+      setSubtitles(subtitleStatus);
+    };
+    checkSubtitles();
+  }, [fileIds, token]);
 
   const toggleFavorite = async (fileId: number) => {
     try {
@@ -70,11 +120,35 @@ export function FolderView({ folderName, children }: FolderViewProps) {
     } catch (e) {}
   };
 
-  const folders = children.filter((item) => item.type_id === 1);
-  const files = children.filter((item) => item.type_id === 2);
-
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
+      {/* Breadcrumbs */}
+      <nav className="flex flex-wrap items-center gap-2 mb-6 text-sm text-zinc-400 min-h-[24px]">
+        {breadcrumbs.length > 0 && breadcrumbs.map((crumb, index) => {
+          const isLast = index === breadcrumbs.length - 1;
+          // 根目錄對應 "/", 其他對應 "/folder/{id}-{name}"
+          const to = crumb.id === "0" ? "/" : `/folder/${crumb.id}-${crumb.name}`;
+          
+          return (
+            <div key={crumb.id} className="flex items-center gap-2">
+              {isLast ? (
+                <span className="font-semibold text-white">{crumb.name}</span>
+              ) : (
+                <>
+                  <Link 
+                    to={to} 
+                    className="hover:text-blue-400 transition-colors"
+                  >
+                    {crumb.name}
+                  </Link>
+                  <ChevronRight size={16} className="text-zinc-600" />
+                </>
+              )}
+            </div>
+          );
+        })}
+      </nav>
+
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold">{folderName}</h1>
         <button
@@ -110,7 +184,7 @@ export function FolderView({ folderName, children }: FolderViewProps) {
                       e.stopPropagation();
                       toggleFavorite(folder.id);
                     }}
-                    className={`absolute top-2 right-2 p-1.5 hover:bg-zinc-700/50 rounded-full transition ${favorites.includes(folder.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'}`}
+                    className={`absolute top-2 right-2 p-1.5 hover:bg-zinc-700/50 rounded-full transition`}
                     title="Toggle Favorite"
                   >
                     <Heart
@@ -130,10 +204,10 @@ export function FolderView({ folderName, children }: FolderViewProps) {
                 >
                   <Link
                     to={`/folder/${folder.id}-${folder.name}`}
-                    className="flex items-center gap-4 flex-1"
+                    className="flex items-start gap-4 flex-1"
                   >
-                    <Folder size={18} className="text-blue-500" fill="currentColor" fillOpacity={0.2} />
-                    <span className="text-sm font-medium">{folder.name}</span>
+                    <Folder size={18} className="text-blue-500 shrink-0 mt-0.5" fill="currentColor" fillOpacity={0.2} />
+                    <span className="text-sm font-medium break-all">{folder.name}</span>
                   </Link>
                   <div className="flex items-center gap-4">
                     <button
@@ -173,6 +247,9 @@ export function FolderView({ folderName, children }: FolderViewProps) {
                   >
                     <Music size={48} className={`${currentTrack?.id === file.id ? "text-blue-400" : "text-zinc-500"} mb-2 group-hover:scale-110 transition`} />
                     <span className={`text-sm text-center truncate w-full ${currentTrack?.id === file.id ? "text-blue-400" : ""}`}>{file.name}</span>
+                    {subtitles[file.id] && (
+                      <span className="text-[10px] text-zinc-500 mt-1">附帶字幕</span>
+                    )}
                   </div>
                   <button
                     onClick={(e) => {
@@ -180,7 +257,7 @@ export function FolderView({ folderName, children }: FolderViewProps) {
                       e.stopPropagation();
                       toggleFavorite(file.id);
                     }}
-                    className={`absolute top-2 right-2 p-1.5 hover:bg-zinc-700/50 rounded-full transition ${favorites.includes(file.id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'}`}
+                    className={`absolute top-2 right-2 p-1.5 hover:bg-zinc-700/50 rounded-full transition`}
                     title="Toggle Favorite"
                   >
                     <Heart
@@ -201,11 +278,16 @@ export function FolderView({ folderName, children }: FolderViewProps) {
                   }`}
                 >
                   <div 
-                    className="flex items-center gap-4 flex-1 cursor-pointer"
+                    className="flex items-start gap-4 flex-1 cursor-pointer"
                     onClick={() => play(file as any)}
                   >
-                    <Music size={18} className={currentTrack?.id === file.id ? "text-blue-400" : "text-zinc-500"} />
-                    <span className="text-sm font-medium">{file.name}</span>
+                    <Music size={18} className={`${currentTrack?.id === file.id ? "text-blue-400" : "text-zinc-500"} shrink-0 mt-0.5`} />
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm font-medium break-all">{file.name}</span>
+                      {subtitles[file.id] && (
+                        <span className="text-xs text-zinc-500 mt-0.5 text-left">附帶字幕</span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <button 

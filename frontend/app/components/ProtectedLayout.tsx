@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
+import { usePlayer } from "../contexts/PlayerContext";
 import { LogOut, Heart, Home as HomeIcon, Settings, X, User as UserIcon } from "lucide-react";
 import { ResyncButton } from "./ResyncButton";
 
@@ -8,6 +9,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 export function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, logout, user, token, login } = useAuth();
+  const { isExpanded } = usePlayer();
   const navigate = useNavigate();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
@@ -85,7 +87,7 @@ export function ProtectedLayout({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="min-h-screen">
+    <div className={`min-h-screen transition-all duration-300 ${isExpanded ? "lg:pl-[400px]" : ""}`}>
       {/* Navigation Header */}
       <nav className="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">

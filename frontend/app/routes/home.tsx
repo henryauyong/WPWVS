@@ -1,26 +1,13 @@
 import { useLoaderData } from "react-router";
-import { ProtectedLayout } from "../components/ProtectedLayout";
-import { FolderView } from "../components/FolderView";
+import { ProtectedLayout } from "~/components/ProtectedLayout";
+import { FolderView } from "~/components/FolderView";
+import { apiClient } from "~/utils/apiClient";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 export async function clientLoader({ request }: { request: Request }) {
-  const token = localStorage.getItem("token");
-  if (!token) return { folder: { name: "Root" }, children: [] };
-
-  const res = await fetch(`${API_URL}/files/folder/0`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  if (res.status === 401) {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    window.location.href = "/login";
-    return null;
-  }
-
-  if (!res.ok) throw new Error("Failed to fetch root folder");
-  return res.json();
+  const res = await apiClient("/files/folder/0")
+  return res
 }
 
 export default function Home() {

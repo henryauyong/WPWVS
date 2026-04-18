@@ -50,6 +50,39 @@ def get_folder(
     children = db.query(models.File).filter(models.File.parent_id == id).all()
     return {"folder": folder, "children": children}
 
+@router.get("/folder/{folder_id}/path")
+def get_folder_path(
+    folder_id: int,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user)
+) -> Any:
+    """
+    回傳從最頂層到目前資料夾的路徑陣列。
+    """
+    if folder_id == 0:
+        return [{"id": "0", "name": "Root"}]
+
+    path_list = []
+    current_id = folder_id
+
+    while current_id is not None:
+        folder = db.query(models.File).filter(models.File.id == current_id, models.File.type_id == 1).first()
+        if not folder:
+            if current_id == folder_id:
+                raise HTTPException(status_code=404, detail="Folder not found")
+            break
+
+        path_list.append({"id": str(folder.id), "name": folder.name})
+        current_id = folder.parent_id
+
+    # 反轉陣列，讓最頂層的資料夾排在最前面
+    path_list.reverse()
+    
+    # 最前面補上虛擬的根目錄
+    path_list.insert(0, {"id": "0", "name": "Root"})
+
+    return path_list
+
 @router.get("/music/{id}")
 def get_music(
     id: int,
@@ -64,6 +97,7 @@ def get_music(
         raise HTTPException(status_code=404, detail="Music file not found")
     return FileResponse(file.path)
 
+@router.head("/subtitle/{music_id}")
 @router.get("/subtitle/{music_id}")
 def get_subtitle(
     music_id: int,

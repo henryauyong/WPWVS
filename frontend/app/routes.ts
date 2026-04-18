@@ -1,8 +1,13 @@
-import { type RouteConfig, index, route } from "@react-router/dev/routes";
+import { type RouteConfig, index, route, layout } from "@react-router/dev/routes";
 
 export default [
-  index("routes/home.tsx"),
   route("login", "routes/login.tsx"),
-  route("folder/:folderSlug", "routes/folder.tsx"),
-  route("favorites", "routes/favorites.tsx"),
+
+  layout("layouts/MainLayout.tsx", [
+    index("routes/home.tsx"),
+    route("folder/:folderSlug", "routes/folder.tsx"),
+    route("favorites", "routes/favorites.tsx"),
+  ]),
+
+  route("*", "routes/NotFound.tsx")
 ] satisfies RouteConfig;

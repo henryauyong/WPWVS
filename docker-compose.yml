@@ -2,19 +2,33 @@ version: '3.8'
 
 services:
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: wpwvs-backend
     ports:
       - "8000:8000"
     volumes:
-      - ./backend/music:/app/music
-    restart: always
+      - ./backend/data:/app/data
+      - /mnt/d/Music:/app/music
+      - ./backend/.env:/app/.env:ro
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=sqlite:////app/data/db.sqlite
+      - MUSIC_DIR=/app/music
+      # Other variables should be in ./backend/.env
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # User should configure VITE_API_URL in frontend/.env.production
+        # We pass it to the build process if needed, or Vite will pick it up from .env.production automatically during build
+        - NODE_ENV=production
+    container_name: wpwvs-frontend
     ports:
       - "3000:3000"
     depends_on:
       - backend
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
-    restart: always
+    restart: unless-stopped

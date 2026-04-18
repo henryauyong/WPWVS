@@ -22,11 +22,13 @@ interface PlayerContextType {
   duration: number;
   volume: number;
   currentSubtitle: string;
+  isExpanded: boolean;
   play: (track: Track) => void;
   pause: () => void;
   togglePlay: () => void;
   seek: (time: number) => void;
   setVolume: (volume: number) => void;
+  setIsExpanded: (expanded: boolean) => void;
 }
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
@@ -42,6 +44,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [volume, setVolumeState] = useState(1);
   const [subtitles, setSubtitles] = useState<SubtitleLine[]>([]);
   const [currentSubtitle, setCurrentSubtitle] = useState("");
+  const [isExpanded, setIsExpanded] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const subtitlesRef = useRef<SubtitleLine[]>([]);
@@ -144,6 +147,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const play = (track: Track) => {
     setCurrentTrack(track);
     
+    setIsExpanded((prev) => {
+      if (!prev && window.innerWidth < 1024) {
+        window.history.pushState({ playerExpanded: true }, "");
+      }
+      return true;
+    });
+    
     const targetSrc = `${API_URL}/files/music/${track.id}?token=${token}`;
     
     // Check if the src needs to be updated. This handles HMR correctly 
@@ -177,11 +187,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         duration,
         volume,
         currentSubtitle,
+        isExpanded,
         play,
         pause,
         togglePlay,
         seek,
         setVolume,
+        setIsExpanded,
       }}
     >
       {children}

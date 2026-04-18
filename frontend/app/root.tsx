@@ -1,5 +1,4 @@
 import {
-  isRouteErrorResponse,
   Links,
   Meta,
   Outlet,
@@ -10,9 +9,7 @@ import {
 import type { Route } from "./+types/root";
 import stylesheet from "./app.css?url";
 import { AuthProvider } from "./contexts/AuthContext";
-import { PlayerProvider } from "./contexts/PlayerContext";
-import { MiniPlayer } from "./components/MiniPlayer";
-import { SubtitleOverlay } from "./components/SubtitleOverlay";
+import { ErrorPage } from "./components/ErrorPage";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -39,11 +36,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </head>
       <body className="bg-zinc-950 text-white min-h-screen pb-24">
         <AuthProvider>
-          <PlayerProvider>
-            {children}
-            <SubtitleOverlay />
-            <MiniPlayer />
-          </PlayerProvider>
+          {children}
         </AuthProvider>
         <ScrollRestoration />
         <Scripts />
@@ -57,30 +50,5 @@ export default function App() {
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  let message = "Oops!";
-  let details = "An unexpected error occurred.";
-  let stack: string | undefined;
-
-  if (isRouteErrorResponse(error)) {
-    message = error.status === 404 ? "404" : "Error";
-    details =
-      error.status === 404
-        ? "The requested page could not be found."
-        : error.statusText || details;
-  } else if (import.meta.env.DEV && error && error instanceof Error) {
-    details = error.message;
-    stack = error.stack;
-  }
-
-  return (
-    <main className="pt-16 p-4 container mx-auto">
-      <h1>{message}</h1>
-      <p>{details}</p>
-      {stack && (
-        <pre className="w-full p-4 overflow-x-auto">
-          <code>{stack}</code>
-        </pre>
-      )}
-    </main>
-  );
+  return <ErrorPage error={error} />;
 }
