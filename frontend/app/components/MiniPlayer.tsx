@@ -64,8 +64,12 @@ export function MiniPlayer() {
   // Format time (e.g., 03:45)
   const formatTime = (timeInSeconds: number) => {
     if (isNaN(timeInSeconds)) return "0:00";
-    const minutes = Math.floor(timeInSeconds / 60);
+    const hours = Math.floor(timeInSeconds / 3600);
+    const minutes = Math.floor((timeInSeconds % 3600) / 60);
     const seconds = Math.floor(timeInSeconds % 60);
+    if (hours > 0) {
+      return `${hours}:${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+    }
     return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
 
@@ -177,7 +181,8 @@ export function MiniPlayer() {
                   max={duration || 100}
                   value={progress}
                   onChange={(e) => seek(parseFloat(e.target.value))}
-                  className="w-full h-1.5 sm:h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-white hover:accent-blue-400 transition-all touch-none"
+                  className="w-full h-1.5 sm:h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400 transition-all touch-none"
+                  style={{ background: `linear-gradient(to right, #3b82f6 ${progressPercent}%, #27272a ${progressPercent}%)` }}
                 />
                 <div className="flex justify-between text-xs sm:text-sm lg:text-xs text-zinc-400 font-medium">
                   <span>{formatTime(progress)}</span>
@@ -208,7 +213,8 @@ export function MiniPlayer() {
                     step="0.01" 
                     value={volume} 
                     onChange={(e) => setVolume(parseFloat(e.target.value))}
-                    className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-white"
+                    className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                    style={{ background: `linear-gradient(to right, #3b82f6 ${volume * 100}%, #27272a ${volume * 100}%)` }}
                   />
                 </div>
               </div>

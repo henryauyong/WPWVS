@@ -7,9 +7,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Install system dependencies if any are needed for crypto libraries
+# Install system dependencies
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends gcc build-essential \
+    && apt-get install -y --no-install-recommends gcc build-essential ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install
