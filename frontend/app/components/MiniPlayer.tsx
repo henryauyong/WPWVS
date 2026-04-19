@@ -194,12 +194,26 @@ export function MiniPlayer() {
               <div className="flex items-center justify-center relative w-full lg:flex-col lg:gap-6">
                 
                 {/* 播放/暫停按鈕 */}
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-6 sm:gap-8 lg:gap-6">
+                  <button 
+                    onClick={() => seek(Math.max(0, progress - 10))}
+                    className="p-2 text-zinc-400 hover:text-white transition-colors"
+                    title="倒退 10 秒"
+                  >
+                    <SkipBack size={32} className="lg:w-6 lg:h-6" fill="currentColor" />
+                  </button>
                   <button 
                     onClick={togglePlay} 
                     className="p-5 sm:p-6 lg:p-4 bg-white text-black rounded-full hover:scale-105 hover:bg-zinc-200 transition-all shadow-xl"
                   >
                     {isPlaying ? <Pause size={32} fill="black" className="lg:w-6 lg:h-6" /> : <Play size={32} fill="black" className="lg:w-6 lg:h-6" />}
+                  </button>
+                  <button 
+                    onClick={() => seek(Math.min(duration || 0, progress + 10))}
+                    className="p-2 text-zinc-400 hover:text-white transition-colors"
+                    title="快轉 10 秒"
+                  >
+                    <SkipForward size={32} className="lg:w-6 lg:h-6" fill="currentColor" />
                   </button>
                 </div>
 

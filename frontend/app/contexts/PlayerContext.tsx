@@ -64,20 +64,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    const handleLoadedMetadata = () => setDuration(audio.duration);
     const handleEnded = () => setIsPlaying(false);
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
 
     audio.addEventListener("timeupdate", handleTimeUpdate);
-    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
     audio.addEventListener("ended", handleEnded);
     audio.addEventListener("play", handlePlay);
     audio.addEventListener("pause", handlePause);
 
     return () => {
       audio.removeEventListener("timeupdate", handleTimeUpdate);
-      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("play", handlePlay);
       audio.removeEventListener("pause", handlePause);
@@ -122,6 +119,20 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const fetchDuration = async (trackId: number) => {
+    try {
+      const res = await fetch(`${API_URL}/files/music/${trackId}/duration`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setDuration(data.duration);
+      }
+    } catch (e) {
+      console.error("Failed to fetch duration:", e);
+    }
+  };
+
   const parseSubtitles = (text: string) => {
     // Basic VTT parser
     const lines: SubtitleLine[] = [];
@@ -161,6 +172,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (!audioRef.current!.src || !audioRef.current!.src.includes(`/files/music/${track.id}`)) {
       audioRef.current!.src = targetSrc;
       fetchSubtitles(track.id);
+      fetchDuration(track.id);
     }
     
     audioRef.current!.play().catch((err) => console.error("Audio playback failed:", err));

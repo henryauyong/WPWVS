@@ -37,6 +37,24 @@ def is_mp4_faststart(path: str) -> bool:
         pass
     return False
 
+def get_media_duration(file_path: str) -> Optional[int]:
+    """
+    使用 ffprobe 獲取媒體檔案的長度 (秒)。
+    """
+    try:
+        cmd = [
+            "ffprobe", "-v", "error", "-show_entries",
+            "format=duration", "-of",
+            "default=noprint_wrappers=1:nokey=1", file_path
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        return int(float(result.stdout.strip()))
+    except Exception:
+        print("fail")
+        return None
+ 
+
+
 def optimize_mp4(file_path: str):
     """
     使用 ffmpeg 執行 -movflags +faststart 優化，讓前端可直接獲取長度並串流。
@@ -119,11 +137,13 @@ def sync_files_with_disk(db: Session):
                     item_id = path_to_id.get(path_str)
                 else:
                     # 說明是新檔案或資料夾 -> 存入資料庫
+                    duration = get_media_duration(path_str) if type_id == 2 else None
                     new_file = models.File(
                         name=item.name,
                         path=path_str,
                         type_id=type_id,
-                        parent_id=parent_id
+                        parent_id=parent_id,
+                        duration=duration
                     )
                     db.add(new_file)
                     db.flush() # 取得自增 ID
@@ -168,6 +188,15 @@ def sync_files_with_disk(db: Session):
                     sub_pair_set.add((m_id, s_id))
 
     # 4. 處理剩餘資料 (批量刪除已從磁碟消失的檔案)
+    if existing_paths_set:
+        paths_list = list(existing_paths_set)
+        # 批量刪除，防止 SQLite 參數限制
+        for i in range(0, len(paths_list), 900):
+            chunk = paths_list[i:i+900]
+            db.query(models.File).filter(models.File.path.in_(chunk)).delete(synchronize_session=False)
+
+    db.commit()
+
     if existing_paths_set:
         paths_list = list(existing_paths_set)
         # 批量刪除，防止 SQLite 參數限制

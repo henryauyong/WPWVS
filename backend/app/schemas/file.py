@@ -7,6 +7,7 @@ class FileBase(BaseModel):
     path: str
     type_id: int
     parent_id: Optional[int] = None
+    duration: Optional[int] = None
 
 class FileCreate(FileBase):
     pass

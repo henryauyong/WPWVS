@@ -44,6 +44,7 @@ class File(Base):
     path = Column(String, unique=True, index=True, nullable=False)
     type_id = Column(Integer, nullable=False)
     parent_id = Column(Integer, ForeignKey("files.id", ondelete="CASCADE"), nullable=True)
+    duration = Column(Integer, nullable=True)
     last_seen = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # 自我關聯：資料夾與檔案的層級結構

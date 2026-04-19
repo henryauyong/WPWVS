@@ -97,6 +97,20 @@ def get_music(
         raise HTTPException(status_code=404, detail="Music file not found")
     return FileResponse(file.path)
 
+@router.get("/music/{id}/duration")
+def get_music_duration(
+    id: int,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user)
+) -> Any:
+    """
+    回傳音樂檔案的長度 (秒)。
+    """
+    file = db.query(models.File).filter(models.File.id == id, models.File.type_id == 2).first()
+    if not file:
+        raise HTTPException(status_code=404, detail="Music file not found")
+    return {"duration": file.duration}
+
 @router.head("/subtitle/{music_id}")
 @router.get("/subtitle/{music_id}")
 def get_subtitle(

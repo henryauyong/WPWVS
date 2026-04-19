@@ -24,6 +24,9 @@ class File(BaseWithId):
         nullable=True
     )
     
+    # 音樂檔案的長度 (秒)，資料夾與字幕檔保持 null
+    duration = Column(Integer, nullable=True)
+    
     # 自動更新掃描時間，用於判斷檔案是否還存在於硬碟上
     last_seen = Column(
         DateTime(timezone=True), 
