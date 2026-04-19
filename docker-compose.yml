@@ -12,6 +12,15 @@ services:
       - ./backend/data:/app/data
       - /mnt/d/Music:/app/music
       - ./backend/.env:/app/.env:ro
+    # devices:
+    #   - /dev/dri:/dev/dri # Optional: Enable Intel/AMD hardware acceleration for ffmpeg
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu] # Optional: Enable NVIDIA hardware acceleration for ffmpeg
     restart: unless-stopped
     environment:
       - DATABASE_URL=sqlite:////app/data/db.sqlite
