@@ -9,7 +9,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend/data:/app/data
+      - ./backend/data:/app/app/data
       - /mnt/d/Music:/app/music
       - ./backend/.env:/app/.env:ro
     # devices:

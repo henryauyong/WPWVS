@@ -1,7 +1,7 @@
-from typing import Any
+from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app import schemas, deps, models
 from app.crud import file_crud
@@ -33,21 +33,22 @@ def get_folder(
     當 id=0 時，回傳根目錄（parent_id=0）的內容。
     """
     if id == 0:
-        children = db.query(models.File).filter(models.File.parent_id == None).all()
+        children = db.query(models.File).options(joinedload(models.File.subtitles)).filter(models.File.parent_id == None).all()
         # 建立一個虛擬的根資料夾資訊
         root_folder = {
             "id": 0,
             "name": "Root",
             "path": "/",
             "type_id": 1,
-            "parent_id": None
+            "parent_id": None,
+            "subtitles": []
         }
         return {"folder": root_folder, "children": children}
 
-    folder = db.query(models.File).filter(models.File.id == id, models.File.type_id == 1).first()
+    folder = db.query(models.File).options(joinedload(models.File.subtitles)).filter(models.File.id == id, models.File.type_id == 1).first()
     if not folder:
         raise HTTPException(status_code=404, detail="Folder not found")
-    children = db.query(models.File).filter(models.File.parent_id == id).all()
+    children = db.query(models.File).options(joinedload(models.File.subtitles)).filter(models.File.parent_id == id).all()
     return {"folder": folder, "children": children}
 
 @router.get("/folder/{folder_id}/path")
@@ -130,3 +131,25 @@ def get_subtitle(
         raise HTTPException(status_code=404, detail="Subtitle file record not found")
         
     return FileResponse(file.path)
+
+@router.get("/search", response_model=List[schemas.File])
+def search_files(
+    q: str,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user)
+) -> Any:
+    """
+    搜尋包含指定字串的檔案或資料夾。
+    """
+    if not q or not q.strip():
+        return []
+        
+    # 搜尋資料夾(1)與音樂(2)，忽略獨立的字幕檔(3)，並包含字幕的預先載入
+    results = db.query(models.File).options(
+        joinedload(models.File.subtitles)
+    ).filter(
+        models.File.name.ilike(f"%{q.strip()}%"),
+        models.File.type_id.in_([1, 2])
+    ).all()
+    
+    return results

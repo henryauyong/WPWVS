@@ -1,21 +1,22 @@
 import { useEffect } from "react";
 import { usePlayer } from "../contexts/PlayerContext";
-import { Play, Pause, SkipBack, SkipForward, Volume2, X, Music } from "lucide-react";
+import { Play, Pause, SkipBack, SkipForward, Volume2, X, Music, Rewind, FastForward } from "lucide-react";
 
 export function MiniPlayer() {
-  const { 
-    currentTrack, 
-    isPlaying, 
-    progress, 
-    duration, 
-    togglePlay, 
+  const {
+    currentTrack,
+    isPlaying,
+    progress,
+    duration,
+    togglePlay,
     seek,
     volume,
     setVolume,
     isExpanded,
-    setIsExpanded
+    setIsExpanded,
+    playNext,
+    playPrevious
   } = usePlayer();
-
   // 攔截上一頁按鈕 (popstate) 與鎖定背景滾動 (僅限手機版)
   useEffect(() => {
     const isMobile = window.innerWidth < 1024;
@@ -194,13 +195,20 @@ export function MiniPlayer() {
               <div className="flex items-center justify-center relative w-full lg:flex-col lg:gap-6">
                 
                 {/* 播放/暫停按鈕 */}
-                <div className="flex items-center gap-6 sm:gap-8 lg:gap-6">
+                <div className="flex items-center gap-4 sm:gap-6 lg:gap-4">
+                  <button 
+                    onClick={playPrevious}
+                    className="p-2 text-zinc-400 hover:text-white transition-colors"
+                    title="上一首"
+                  >
+                    <SkipBack size={28} className="lg:w-6 lg:h-6" fill="currentColor" />
+                  </button>
                   <button 
                     onClick={() => seek(Math.max(0, progress - 10))}
                     className="p-2 text-zinc-400 hover:text-white transition-colors"
                     title="倒退 10 秒"
                   >
-                    <SkipBack size={32} className="lg:w-6 lg:h-6" fill="currentColor" />
+                    <Rewind size={24} className="lg:w-5 lg:h-5" fill="currentColor" />
                   </button>
                   <button 
                     onClick={togglePlay} 
@@ -213,7 +221,14 @@ export function MiniPlayer() {
                     className="p-2 text-zinc-400 hover:text-white transition-colors"
                     title="快轉 10 秒"
                   >
-                    <SkipForward size={32} className="lg:w-6 lg:h-6" fill="currentColor" />
+                    <FastForward size={24} className="lg:w-5 lg:h-5" fill="currentColor" />
+                  </button>
+                  <button 
+                    onClick={playNext}
+                    className="p-2 text-zinc-400 hover:text-white transition-colors"
+                    title="下一首"
+                  >
+                    <SkipForward size={28} className="lg:w-6 lg:h-6" fill="currentColor" />
                   </button>
                 </div>
 

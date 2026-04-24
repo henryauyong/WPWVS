@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router";
-import { Folder, Music, Heart, LayoutGrid, List, ChevronRight } from "lucide-react";
+import { Folder, Music, Heart, LayoutGrid, List, ChevronRight, Search, X } from "lucide-react";
 import { usePlayer } from "../contexts/PlayerContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useState, useEffect } from "react";
@@ -12,6 +12,8 @@ interface Item {
   name: string;
   type_id: number;
   parent_id: number;
+  duration?: number;
+  subtitles?: any[];
 }
 
 interface PathItem {
@@ -24,6 +26,17 @@ interface FolderViewProps {
   children: Item[];
 }
 
+const formatDuration = (seconds?: number) => {
+  if (!seconds) return "";
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  }
+  return `${m}:${s.toString().padStart(2, "0")}`;
+};
+
 export function FolderView({ folderName, children }: FolderViewProps) {
   const { folderSlug: paramsFolder } = useParams();
   const folderId = paramsFolder ? parseInt(paramsFolder.split("-")[0]) : 0;
@@ -31,8 +44,10 @@ export function FolderView({ folderName, children }: FolderViewProps) {
   const { play, currentTrack } = usePlayer();
   const { token } = useAuth();
   const [favorites, setFavorites] = useState<number[]>([]);
-  const [subtitles, setSubtitles] = useState<Record<number, boolean>>({});
   const [breadcrumbs, setBreadcrumbs] = useState<PathItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Item[] | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
   
   // Default to list view if not set, or whatever is in localStorage
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
@@ -76,33 +91,38 @@ export function FolderView({ folderName, children }: FolderViewProps) {
     if (token) {
       fetchPath();
     }
+    // Clear search when folder changes
+    setSearchQuery("");
+    setSearchResults(null);
   }, [folderId, token]);
 
-  const folders = children.filter((item) => item.type_id === 1);
-  const files = children.filter((item) => item.type_id === 2);
-  const fileIds = files.map(f => f.id).join(',');
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      setSearchResults(null);
+      return;
+    }
+    setIsSearching(true);
+    try {
+      const res = await apiClient(`/files/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSearchResults(data);
+      }
+    } catch (e) {
+      console.error("Search failed", e);
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
-  useEffect(() => {
-    const checkSubtitles = async () => {
-      if (files.length === 0 || !token) return;
-      const subtitleStatus: Record<number, boolean> = {};
-      await Promise.allSettled(
-        files.map(async (file) => {
-          try {
-            const res = await fetch(`${API_URL}/files/subtitle/${file.id}`, {
-              method: 'HEAD',
-              headers: { Authorization: `Bearer ${token}` }
-            });
-            subtitleStatus[file.id] = res.ok;
-          } catch (e) {
-            subtitleStatus[file.id] = false;
-          }
-        })
-      );
-      setSubtitles(subtitleStatus);
-    };
-    checkSubtitles();
-  }, [fileIds, token]);
+  const clearSearch = () => {
+    setSearchQuery("");
+    setSearchResults(null);
+  };
+
+  const displayItems = searchResults !== null ? searchResults : children;
+  const folders = displayItems.filter((item) => item.type_id === 1);
+  const files = displayItems.filter((item) => item.type_id === 2);
 
   const toggleFavorite = async (fileId: number) => {
     try {
@@ -149,18 +169,53 @@ export function FolderView({ folderName, children }: FolderViewProps) {
         })}
       </nav>
 
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold">{folderName}</h1>
-        <button
-          onClick={toggleViewMode}
-          className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg transition flex items-center gap-2"
-          title={`Switch to ${viewMode === 'list' ? 'grid' : 'list'} view`}
-        >
-          {viewMode === 'list' ? <LayoutGrid size={20} className="text-zinc-400" /> : <List size={20} className="text-zinc-400" />}
-          <span className="text-sm font-medium text-zinc-400 hidden sm:inline">
-            {viewMode === 'list' ? 'Grid View' : 'List View'}
-          </span>
-        </button>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <h1 className="text-3xl font-bold">
+          {searchResults !== null ? `Search Results for "${searchQuery}"` : folderName}
+        </h1>
+        
+        <div className="flex items-center gap-4 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-64">
+            <input
+              type="text"
+              placeholder="Search files and folders..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              className="w-full bg-zinc-900 border border-zinc-800 rounded-lg py-2 pl-4 pr-16 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+            />
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {searchQuery && (
+                <button
+                  onClick={clearSearch}
+                  className="p-1 hover:bg-zinc-800 rounded-md text-zinc-400 hover:text-white transition"
+                  title="Clear search"
+                >
+                  <X size={14} />
+                </button>
+              )}
+              <button
+                onClick={handleSearch}
+                disabled={isSearching || !searchQuery.trim()}
+                className="p-1 hover:bg-zinc-800 rounded-md text-zinc-400 hover:text-white transition disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Search"
+              >
+                <Search size={16} />
+              </button>
+            </div>
+          </div>
+          
+          <button
+            onClick={toggleViewMode}
+            className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg transition flex items-center gap-2 whitespace-nowrap shrink-0"
+            title={`Switch to ${viewMode === 'list' ? 'grid' : 'list'} view`}
+          >
+            {viewMode === 'list' ? <LayoutGrid size={20} className="text-zinc-400" /> : <List size={20} className="text-zinc-400" />}
+            <span className="text-sm font-medium text-zinc-400 hidden sm:inline">
+              {viewMode === 'list' ? 'Grid View' : 'List View'}
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* Folders Section */}
@@ -247,9 +302,14 @@ export function FolderView({ folderName, children }: FolderViewProps) {
                   >
                     <Music size={48} className={`${currentTrack?.id === file.id ? "text-blue-400" : "text-zinc-500"} mb-2 group-hover:scale-110 transition`} />
                     <span className={`text-sm text-center truncate w-full ${currentTrack?.id === file.id ? "text-blue-400" : ""}`}>{file.name}</span>
-                    {subtitles[file.id] && (
-                      <span className="text-[10px] text-zinc-500 mt-1">附帶字幕</span>
-                    )}
+                    <div className="flex items-center gap-2 mt-1">
+                      {file.duration !== undefined && file.duration > 0 && (
+                        <span className="text-[10px] text-zinc-500">{formatDuration(file.duration)}</span>
+                      )}
+                      {(file.subtitles && file.subtitles.length > 0) && (
+                        <span className="text-[10px] text-zinc-500">附帶字幕</span>
+                      )}
+                    </div>
                   </div>
                   <button
                     onClick={(e) => {
@@ -284,9 +344,14 @@ export function FolderView({ folderName, children }: FolderViewProps) {
                     <Music size={18} className={`${currentTrack?.id === file.id ? "text-blue-400" : "text-zinc-500"} shrink-0 mt-0.5`} />
                     <div className="flex flex-col min-w-0">
                       <span className="text-sm font-medium break-all">{file.name}</span>
-                      {subtitles[file.id] && (
-                        <span className="text-xs text-zinc-500 mt-0.5 text-left">附帶字幕</span>
-                      )}
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {file.duration !== undefined && file.duration > 0 && (
+                          <span className="text-xs text-zinc-500">{formatDuration(file.duration)}</span>
+                        )}
+                        {(file.subtitles && file.subtitles.length > 0) && (
+                          <span className="text-xs text-zinc-500 text-left">附帶字幕</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">

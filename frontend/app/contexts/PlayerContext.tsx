@@ -7,6 +7,8 @@ interface Track {
   path: string;
   type_id: number;
   parent_id: number;
+  duration?: number;
+  subtitles?: { music_file_id: number; subtitle_file_id: number; extension: string }[];
 }
 
 interface SubtitleLine {
@@ -29,6 +31,8 @@ interface PlayerContextType {
   seek: (time: number) => void;
   setVolume: (volume: number) => void;
   setIsExpanded: (expanded: boolean) => void;
+  playNext: () => Promise<void>;
+  playPrevious: () => Promise<void>;
 }
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
@@ -48,11 +52,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const subtitlesRef = useRef<SubtitleLine[]>([]);
+  const playNextRef = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
-    const audio = new Audio();
-    audio.crossOrigin = "anonymous";
-    audioRef.current = audio;
+    const audio = audioRef.current;
+    if (!audio) return;
     
     const handleTimeUpdate = () => {
       setProgress(audio.currentTime);
@@ -64,7 +68,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    const handleEnded = () => setIsPlaying(false);
+    const handleEnded = () => {
+      setIsPlaying(false);
+      if (playNextRef.current) {
+        playNextRef.current();
+      }
+    };
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
 
@@ -78,7 +87,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("play", handlePlay);
       audio.removeEventListener("pause", handlePause);
-      audio.pause();
     };
   }, []); // Only on mount
 
@@ -171,7 +179,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     // where the Audio object is recreated but currentTrack remains the same.
     if (!audioRef.current!.src || !audioRef.current!.src.includes(`/files/music/${track.id}`)) {
       audioRef.current!.src = targetSrc;
-      fetchSubtitles(track.id);
+      if (track.subtitles && track.subtitles.length > 0) {
+        fetchSubtitles(track.id);
+      } else {
+        setSubtitles([]);
+      }
       fetchDuration(track.id);
     }
     
@@ -190,6 +202,54 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const playNext = async () => {
+    if (!currentTrack || currentTrack.parent_id === undefined) return;
+    try {
+      const res = await fetch(`${API_URL}/files/folder/${currentTrack.parent_id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const files = data.children.filter((c: Track) => c.type_id === 2);
+        const currentIndex = files.findIndex((f: Track) => f.id === currentTrack.id);
+        if (currentIndex !== -1 && currentIndex < files.length - 1) {
+          play(files[currentIndex + 1]);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to play next track:", e);
+    }
+  };
+
+  playNextRef.current = playNext;
+
+  const playPrevious = async () => {
+    if (!currentTrack || currentTrack.parent_id === undefined) return;
+    try {
+      const res = await fetch(`${API_URL}/files/folder/${currentTrack.parent_id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const files = data.children.filter((c: Track) => c.type_id === 2);
+        const currentIndex = files.findIndex((f: Track) => f.id === currentTrack.id);
+        if (currentIndex > 0) {
+          play(files[currentIndex - 1]);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to play previous track:", e);
+    }
+  };
+
+  // Sync mediaSession with playNext/playPrevious
+  useEffect(() => {
+    if (currentTrack && "mediaSession" in navigator) {
+      navigator.mediaSession.setActionHandler("previoustrack", playPrevious);
+      navigator.mediaSession.setActionHandler("nexttrack", playNext);
+    }
+  }, [currentTrack, token]); // currentTrack changes -> playNext/playPrevious get recreated implicitly in the render scope, but the easiest is just let the other effect handle metadata and we handle these here.
+
   return (
     <PlayerContext.Provider
       value={{
@@ -206,9 +266,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         seek,
         setVolume,
         setIsExpanded,
+        playNext,
+        playPrevious,
       }}
     >
       {children}
+      <audio ref={audioRef} crossOrigin="anonymous" style={{ display: "none" }} />
     </PlayerContext.Provider>
   );
 }

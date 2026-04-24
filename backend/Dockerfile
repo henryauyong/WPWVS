@@ -21,7 +21,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY . .
 
 # Ensure necessary directories exist
-RUN mkdir -p /app/data /app/music
+RUN mkdir -p /app/music
 
 EXPOSE 8000
 
